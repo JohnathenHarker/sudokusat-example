@@ -1,4 +1,4 @@
-# Sudoku SAT
+# Sudoku SAT (SS 2019)
 
 Please fork this repository and add your own solver implementation accordingly.
 You can run the sample benchmark with the following instruction.
