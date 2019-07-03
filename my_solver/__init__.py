@@ -10,10 +10,10 @@ DIR = os.path.dirname(__file__)
 
 
 class MySudokuSolver(ExecutableTool):
-    name = "My Sudoku Solver"
+    name = "Our Sudoku Solver"
 
     # TODO: change this to your solver executable
-    path = os.path.join(DIR, "my_solver.sh")
+    path = os.path.join(DIR, "our_solver.py")
 
     @classmethod
     def setup(cls):
