@@ -77,11 +77,14 @@ def print_output(solution):
 
     print(DIMENSION*("+"+(DIMENSION*(symbol_length+1)+1)*"-")+"+")
 
+def solve(puzzle, solver):
+    # decode and call the solver
+    solution = puzzle   # just for testing
+    return solution
+
 solver = sys.argv[1]
 input_path = sys.argv[2]
 
-#print("input_path:", input_path)
-#print("solver:", solver)
 puzzle = read_input(input_path)
-#print(puzzle)
-print_output(puzzle)
+solution = solve(puzzle, solver)
+print_output(solution)
