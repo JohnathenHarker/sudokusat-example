@@ -85,7 +85,7 @@ def create_cnf(puzzle, path_to_cnf):
 
     with open(path_to_cnf, 'w') as f:
 
-        f.write("p cnf " + str(size**3) + " 12345\n")
+        f.write("p cnf " + str(size**3 + 4*size**2*2*(size-1)) + " 12345\n")
 
         # cell restrictions
         for row in range(size):
@@ -131,6 +131,52 @@ def create_cnf(puzzle, path_to_cnf):
 
 def exactly_one_out_of(list_of_vars):
     """
+    CNF for 1-out-of-n constraints using half adder circuit logic
+    """
+    global next_unused_variable
+    sums = [next_unused_variable+i for i in range(len(list_of_vars)-1)]
+    next_unused_variable += len(list_of_vars) - 1
+    carries = [next_unused_variable+i for i in range(len(list_of_vars)-1)]
+    next_unused_variable += len(list_of_vars) - 1
+
+    ret = ""
+
+    # first carry is v0 AND v1
+    ret += str(list_of_vars[0]) + " -" + str(carries[0]) + " 0\n"
+    ret += str(list_of_vars[1]) + " -" + str(carries[0]) + " 0\n"
+    ret += "-" + str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " " + str(carries[0]) + " 0\n"
+
+    # first sum is v0 XOR v1
+    ret += str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " -" + str(sums[0]) + " 0\n"
+    ret += "-" + str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " -" + str(sums[0]) + " 0\n"
+    ret += "-" + str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
+    ret += str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
+
+    for i in range(1,len(list_of_vars)-1):
+        # carry is previous sum AND next variable
+        # CNF (~cn | vn+1) & (~cn | sn-1) & (~vn+1 | ~sn-1 | cn)
+        ret += str(list_of_vars[i+1]) + " -" + str(carries[i]) + " 0\n"
+        ret += str(sums[i-1]) + " -" + str(carries[i]) + " 0\n"
+        ret += "-" + str(list_of_vars[i+1]) + " -" + str(sums[i-1]) + " " + str(carries[i]) + " 0\n"
+
+        # sum is previous sum XOR next variable
+        # CNF (~sn | vn+1 | sn-1) & (~sn | ~sn-1 | ~vn+1) & (~vn+1 | sn-1 | sn) & (~sn-1 | vn+1 | sn)
+        ret += "-" + str(sums[i]) + " " + str(list_of_vars[i+1]) + " " + str(sums[i-1]) + " 0\n"
+        ret += "-" + str(sums[i]) + " -" + str(list_of_vars[i+1]) + " -" + str(sums[i-1]) + " 0\n"
+        ret += "-" + str(list_of_vars[i+1]) + " " + str(sums[i]) + " " + str(sums[i-1]) + " 0\n"
+        ret += str(list_of_vars[i+1]) + " -" + str(sums[i-1]) + " " + str(sums[i]) + " 0\n"
+
+        # all carries are false
+        ret += "-" + str(carries[i]) + " 0\n"
+
+    # last sum is true
+    ret += str(sums[-1]) + " 0\n"
+
+    return ret
+
+
+def exactly_one_out_of_primitive(list_of_vars):
+    """
     Return a CNF that ensures exactly one out of a given list of variables is true for all satisfying assignments
     """
     ret = ""
@@ -166,6 +212,9 @@ def int_to_cell(prop_var, size):
 
 def solve(puzzle, solver, input_path):
     size = len(puzzle)
+    global next_unused_variable
+    next_unused_variable = size**3 + 1
+
     cnf_path = input_path[:-3] + "cnf"
     create_cnf(puzzle, cnf_path)
 
@@ -185,7 +234,7 @@ def solve(puzzle, solver, input_path):
             variables = line[2:].split(" ")
             for v in variables:
                 prop_var = int(v)
-                if prop_var > 0:
+                if size**3 >= prop_var > 0:
                     row, col, cell = int_to_cell(prop_var, size)
                     puzzle[row][col] = cell
 
