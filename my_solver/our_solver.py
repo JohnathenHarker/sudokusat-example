@@ -169,17 +169,18 @@ def solve(puzzle, solver, input_path):
     cnf_path = input_path[:-3] + "cnf"
     create_cnf(puzzle, cnf_path)
 
-    print("finished cnf")
+    print("Finished writing CNF file")
 
     if solver != "clasp":
         print("Only supporting clasp atm")
         return
 
     clasp_out = subprocess.run(["clasp", "1", cnf_path], capture_output=True)
+    # remove Windows-specific \r
+    clasp_out = str(clasp_out.stdout).replace("\\r", "")
 
     # process clasp output
-    # TODO make this linux-compatible (which it probably isn't rn)
-    for line in str(clasp_out.stdout).split("\\r\\n"):
+    for line in str(clasp_out).split("\\n"):
         if line[0] == "v":
             variables = line[2:].split(" ")
             for v in variables:
