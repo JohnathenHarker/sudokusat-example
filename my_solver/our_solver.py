@@ -418,17 +418,19 @@ def solve(puzzle, solver, input_path):
         return
 
     clasp_out = subprocess.run(["clasp", "1", cnf_path], capture_output=True)
-    # remove Windows-specific \r
-    clasp_out = str(clasp_out.stdout).replace("\\r", "")
+    clasp_out = clasp_out.stdout.decode()
 
     print("Finished SAT solving")
 
     # process clasp output
     if "UNSATISFIABLE" in clasp_out:
         return "UNSAT"
-    for line in str(clasp_out).split("\\n"):
+    for line in clasp_out.splitlines():
         if line[0] == "v":
             variables = line[2:].split(" ")
+            # if variables out of sudoku range (i.e., auxillary variables), stop decoding solution
+            if abs(int(variables[0])) > size**3:
+                break
             for v in variables:
                 prop_var = int(v)
                 if size**3 >= prop_var > 0:
