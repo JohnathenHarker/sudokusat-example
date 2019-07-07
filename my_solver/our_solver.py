@@ -322,6 +322,61 @@ def preprocess(puzzle):
                                 if val in puzzle[row_index][col_index]:
                                     puzzle[row_index][col_index] = [val]
 
+        # intersection removal
+        for val in range(1, size+1):
+
+            # when all occurrences of val in row are in same subsudoku, remove all other val from subsudoku
+            for row_index in range(size):
+                occurrences = [col for col in range(size) if val in puzzle[row_index][col]]
+                if len(occurrences) < 2:
+                    continue
+                candidate_subsudoku_col = occurrences[0] // subsize
+                if all(candidate_subsudoku_col == col // subsize for col in occurrences):
+                    for r, c in get_same_subsudoku(row_index, candidate_subsudoku_col*subsize, size):
+                        if r != row_index and val in puzzle[r][c]:
+                            puzzle[r][c].remove(val)
+                            changes = True
+                            numchanges += 1
+
+            # when all occurrences of val in col are in same subsudoku, remove all other val from subsudoku
+            for col_index in range(size):
+                occurrences = [row for row in range(size) if val in puzzle[row][col_index]]
+                if len(occurrences) < 2:
+                    continue
+                candidate_subsudoku_row = occurrences[0] // subsize
+                if all(candidate_subsudoku_row == row // subsize for row in occurrences):
+                    for r, c in get_same_subsudoku(candidate_subsudoku_row*subsize, col_index, size):
+                        if c != col_index and val in puzzle[r][c]:
+                            puzzle[r][c].remove(val)
+                            changes = True
+                            numchanges += 1
+
+            for subsudoku_row in range(subsize):
+                for subsudoku_col in range(subsize):
+                    occurrences = [(row, col) for row, col
+                                   in get_same_subsudoku(subsudoku_row*subsize, subsudoku_col*subsize, size)
+                                   if val in puzzle[row][col]]
+                    if len(occurrences) < 2:
+                        continue
+                    candidate_row = occurrences[0][0]
+                    candidate_col = occurrences[0][1]
+                    # when all occurrences of val in box are in the same row, remove all other val from row
+                    if all(candidate_row == r for r, _ in occurrences):
+                        for c_del in range(size):
+                            # only delete from cell in row if column yields different subsudoku
+                            if c_del // subsize != candidate_col // subsize and val in puzzle[candidate_row][c_del]:
+                                puzzle[candidate_row][c_del].remove(val)
+                                changes = True
+                                numchanges += 1
+                    # when all occurrences of val in box are in the same col, remove all other val from col
+                    if all(candidate_col == c for _, c in occurrences):
+                        for r_del in range(size):
+                            # only delete from cell in column if row yields different subsudoku
+                            if r_del // subsize != candidate_row // subsize and val in puzzle[r_del][candidate_col]:
+                                puzzle[r_del][candidate_col].remove(val)
+                                changes = True
+                                numchanges += 1
+
         #print(numchanges)
 
 
