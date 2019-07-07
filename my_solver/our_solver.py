@@ -92,7 +92,10 @@ def create_cnf(puzzle, path_to_cnf):
             for col in range(size):
                 cell_vars = []
                 for val in range(1, size+1):
-                    cell_vars.append(cell_to_int(row, col, val, size))
+                    if val in puzzle[row][col]:
+                        cell_vars.append(cell_to_int(row, col, val, size))
+                    else:
+                        f.write("-" + str(cell_to_int(row, col, val, size)) + " 0\n")
                 f.write(exactly_one_out_of(cell_vars))
 
         # row restrictions
@@ -100,7 +103,8 @@ def create_cnf(puzzle, path_to_cnf):
             for val in range(1, size+1):
                 row_vars = []
                 for row in range(size):
-                    row_vars.append(cell_to_int(row, col, val, size))
+                    if val in puzzle[row][col]:
+                        row_vars.append(cell_to_int(row, col, val, size))
                 f.write(exactly_one_out_of(row_vars))
 
         # col restrictions
@@ -108,7 +112,8 @@ def create_cnf(puzzle, path_to_cnf):
             for val in range(1, size+1):
                 col_vars = []
                 for col in range(size):
-                    col_vars.append(cell_to_int(row, col, val, size))
+                    if val in puzzle[row][col]:
+                        col_vars.append(cell_to_int(row, col, val, size))
                 f.write(exactly_one_out_of(col_vars))
 
         # subsudoku restrictions
@@ -119,14 +124,9 @@ def create_cnf(puzzle, path_to_cnf):
                     subsudoku_vars = []
                     for row in range(subsudoku_row*sub_size, (subsudoku_row+1)*sub_size):
                         for col in range(subsudoku_col*sub_size, (subsudoku_col+1)*sub_size):
-                            subsudoku_vars.append(cell_to_int(row, col, val, size))
+                            if val in puzzle[row][col]:
+                                subsudoku_vars.append(cell_to_int(row, col, val, size))
                     f.write(exactly_one_out_of(subsudoku_vars))
-
-        # given variables
-        for row_index, row in enumerate(puzzle):
-            for col_index, cell in enumerate(row):
-                if cell != 0:
-                    f.write(str(cell_to_int(row_index, col_index, cell, size)) + " 0\n")
 
 
 def exactly_one_out_of(list_of_vars):
@@ -140,6 +140,14 @@ def exactly_one_out_of(list_of_vars):
     next_unused_variable += len(list_of_vars) - 1
 
     ret = ""
+
+    if len(list_of_vars) == 1:
+        return str(list_of_vars[0]) + " 0\n"
+
+    if len(list_of_vars) == 2:
+        ret += str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " 0\n"
+        ret += " -" + str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " 0\n"
+        return ret
 
     # first carry is v0 AND v1
     ret += str(list_of_vars[0]) + " -" + str(carries[0]) + " 0\n"
@@ -210,10 +218,39 @@ def int_to_cell(prop_var, size):
     return row, col, val+1
 
 
+def preprocess(puzzle):
+    size = len(puzzle)
+
+    for i, row in enumerate(puzzle):
+        for j, cell in enumerate(row):
+            if cell == 0:
+                puzzle[i][j] = [i for i in range(1,size+1)]
+            else:
+                puzzle[i][j] = [cell]
+
+    changes = True
+    while changes:
+        changes = False
+        for row_index, row in enumerate(puzzle):
+            for col_index, cell in enumerate(row):
+                if len(cell) == 1:
+                    val = cell[0]
+                    for r in range(size):
+                        if r != row_index and val in puzzle[r][col_index]:
+                            puzzle[r][col_index].remove(val)
+                            changes = True
+                    for c in range(size):
+                        if c != col_index and val in puzzle[row_index][c]:
+                            puzzle[row_index][c].remove(val)
+                            changes = True
+
+
 def solve(puzzle, solver, input_path):
     size = len(puzzle)
     global next_unused_variable
     next_unused_variable = size**3 + 1
+
+    preprocess(puzzle)
 
     cnf_path = input_path[:-3] + "cnf"
     create_cnf(puzzle, cnf_path)
