@@ -436,6 +436,9 @@ def preprocess(puzzle):
                     locked_pairs[col_index] = (occurrences[0], occurrences[1])
 
         print(numchanges)
+        
+        if [] in [cell for row in puzzle for cell in row]:
+            return "UNSAT"
 
 
 def solve(puzzle, solver, input_path):
@@ -443,12 +446,12 @@ def solve(puzzle, solver, input_path):
     global next_unused_variable
     next_unused_variable = size**3 + 1
 
-    preprocess(puzzle)
+    res = preprocess(puzzle)
 
     print("Finished preprocessing")
 
-    if [] in [cell for row in puzzle for cell in row]:
-        return "UNSAT"
+    if res == "UNSAT":
+        return res
 
     # debug printing
     #for line in puzzle:
