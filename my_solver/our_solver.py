@@ -59,8 +59,14 @@ def read_input(input_path):
                 i += 1
         return puzzle
 
+
 # prints the solved puzzle
 def print_output(solution):
+    # TODO figure out what reprobench expects in this case
+    if solution == "UNSAT":
+        print("Sudoku has no solution!")
+        return
+
     for i in range(len(first_lines)):
         print(first_lines[i], end = '')
 
@@ -231,6 +237,7 @@ def get_same_subsudoku(row_index, col_index, size):
         for c in range((col_index // subsize) * subsize, ((col_index // subsize) + 1) * subsize):
             yield r, c
 
+
 def preprocess(puzzle):
     size = len(puzzle)
     subsize = round(math.sqrt(size))
@@ -244,7 +251,7 @@ def preprocess(puzzle):
 
     changes = True
     iterations = 0
-    while changes and iterations < 1000:
+    while changes and iterations < 5:
         changes = False
         iterations += 1
         numchanges = 0
@@ -327,6 +334,9 @@ def solve(puzzle, solver, input_path):
 
     print("Finished preprocessing")
 
+    if [] in [cell for row in puzzle for cell in row]:
+        return "UNSAT"
+
     # debug printing
     #for line in puzzle:
     #    l = ""
@@ -347,7 +357,11 @@ def solve(puzzle, solver, input_path):
     # remove Windows-specific \r
     clasp_out = str(clasp_out.stdout).replace("\\r", "")
 
+    print("Finished SAT solving")
+
     # process clasp output
+    if "UNSATISFIABLE" in clasp_out:
+        return "UNSAT"
     for line in str(clasp_out).split("\\n"):
         if line[0] == "v":
             variables = line[2:].split(" ")
