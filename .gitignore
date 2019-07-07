@@ -6,5 +6,6 @@ __pycache__
 *.log
 output/
 _downloaded/
+.idea/
 
 env/
