@@ -14,10 +14,11 @@ TASK=$2
 sleep .1
 >&2 echo "running $0 $*"
 filename="$(basename $2)"
-echo $filename
-if [ $filename == "bsp-sudoku1.txt" ]; then
-    cat $(dirname $2)/$(basename -s .txt $2).sol
-fi
+py $(dirname $0)/our_solver.py $1 $2
+#echo $filename
+#if [ $filename == "bsp-sudoku1.txt" ]; then
+#    cat $(dirname $2)/$(basename -s .txt $2).sol
+#fi
 
 
 >&2 echo "done!"
