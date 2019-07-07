@@ -105,7 +105,8 @@ def create_cnf(puzzle, path_to_cnf):
                 for row in range(size):
                     if val in puzzle[row][col]:
                         row_vars.append(cell_to_int(row, col, val, size))
-                f.write(exactly_one_out_of(row_vars))
+                if len(row_vars) > 1:
+                    f.write(exactly_one_out_of(row_vars))
 
         # col restrictions
         for row in range(size):
@@ -114,7 +115,8 @@ def create_cnf(puzzle, path_to_cnf):
                 for col in range(size):
                     if val in puzzle[row][col]:
                         col_vars.append(cell_to_int(row, col, val, size))
-                f.write(exactly_one_out_of(col_vars))
+                if len(col_vars) > 1:
+                    f.write(exactly_one_out_of(col_vars))
 
         # subsudoku restrictions
         sub_size = round(math.sqrt(size))
@@ -126,7 +128,8 @@ def create_cnf(puzzle, path_to_cnf):
                         for col in range(subsudoku_col*sub_size, (subsudoku_col+1)*sub_size):
                             if val in puzzle[row][col]:
                                 subsudoku_vars.append(cell_to_int(row, col, val, size))
-                    f.write(exactly_one_out_of(subsudoku_vars))
+                    if len(subsudoku_vars) > 1:
+                        f.write(exactly_one_out_of(subsudoku_vars))
 
 
 def exactly_one_out_of(list_of_vars):
@@ -153,6 +156,8 @@ def exactly_one_out_of(list_of_vars):
     ret += str(list_of_vars[0]) + " -" + str(carries[0]) + " 0\n"
     ret += str(list_of_vars[1]) + " -" + str(carries[0]) + " 0\n"
     ret += "-" + str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " " + str(carries[0]) + " 0\n"
+    # first carry is (like all carries) false
+    ret += "-" + str(carries[0]) + " 0\n"
 
     # first sum is v0 XOR v1
     ret += str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " -" + str(sums[0]) + " 0\n"
@@ -220,6 +225,7 @@ def int_to_cell(prop_var, size):
 
 def preprocess(puzzle):
     size = len(puzzle)
+    subsize = round(math.sqrt(size))
 
     for i, row in enumerate(puzzle):
         for j, cell in enumerate(row):
@@ -231,6 +237,8 @@ def preprocess(puzzle):
     changes = True
     while changes:
         changes = False
+
+        # if there's a determined cell, remove its value from all cell in the same row/col/subsudoku
         for row_index, row in enumerate(puzzle):
             for col_index, cell in enumerate(row):
                 if len(cell) == 1:
@@ -243,6 +251,11 @@ def preprocess(puzzle):
                         if c != col_index and val in puzzle[row_index][c]:
                             puzzle[row_index][c].remove(val)
                             changes = True
+                    for r in range((row_index // subsize) * subsize, ((row_index // subsize) + 1) * subsize):
+                        for c in range((col_index // subsize) * subsize, ((col_index // subsize) + 1) * subsize):
+                            if (r != row_index or c != col_index) and val in puzzle[r][c]:
+                                puzzle[r][c].remove(val)
+                                changes = True
 
 
 def solve(puzzle, solver, input_path):
@@ -251,6 +264,15 @@ def solve(puzzle, solver, input_path):
     next_unused_variable = size**3 + 1
 
     preprocess(puzzle)
+
+    print("Finished preprocessing")
+
+    # debug printing
+    #for line in puzzle:
+    #    l = ""
+    #    for cells in line:
+    #        l += str(cells) + "   "*(5-len(cells))
+    #    print(l)
 
     cnf_path = input_path[:-3] + "cnf"
     create_cnf(puzzle, cnf_path)
