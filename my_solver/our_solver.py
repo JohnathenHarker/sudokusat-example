@@ -70,7 +70,6 @@ def print_output(solution):
                 print("| ", end = '')
                 for k in range(DIMENSION):
                     number = solution[i*DIMENSION+l][j*DIMENSION+k]
-                    number = max(number,2)
                     empty = (symbol_length-len(str(number)))*" "
                     print(empty + str(solution[i*DIMENSION+l][j*DIMENSION+k]), end = ' ')
             print("|")
@@ -81,6 +80,8 @@ def solve(puzzle, solver):
     # decode and call the solver
     solution = puzzle   # just for testing
     return solution
+
+
 
 solver = sys.argv[1]
 input_path = sys.argv[2]
