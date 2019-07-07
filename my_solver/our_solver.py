@@ -251,12 +251,12 @@ def preprocess(puzzle):
 
     changes = True
     iterations = 0
-    while changes and iterations < 5:
+    while changes and iterations < 10:
         changes = False
         iterations += 1
         numchanges = 0
 
-        # Naked Single: if there's a determined cell, remove its value from all cell in the same row/col/subsudoku
+        # Naked Single propagation: for a determined cell, remove its value from all cells in the same row/col/subsudoku
         for row_index, row in enumerate(puzzle):
             for col_index, cell in enumerate(row):
                 if len(cell) == 1:
@@ -278,7 +278,7 @@ def preprocess(puzzle):
                             numchanges += 1
 
         # included in intersection removal
-        # # Hidden Single: if there's a row/col/subsudoku where a value is only possible in one spot, fill that spot
+        # Hidden Single: if there's a row/col/subsudoku where a value is only possible in only one spot, fill that spot
         # for val in range(1, size+2):
         #
         #     # iterating over rows
@@ -332,6 +332,9 @@ def preprocess(puzzle):
                 if len(occurrences) < 1:
                     continue
                 candidate_subsudoku_col = occurrences[0] // subsize
+                # handle hidden single
+                if len(occurrences) == 1:
+                    puzzle[row_index][occurrences[0]] = [val]
                 if all(candidate_subsudoku_col == col // subsize for col in occurrences):
                     for r, c in get_same_subsudoku(row_index, candidate_subsudoku_col*subsize, size):
                         if r != row_index and val in puzzle[r][c]:
@@ -345,6 +348,9 @@ def preprocess(puzzle):
                 if len(occurrences) < 1:
                     continue
                 candidate_subsudoku_row = occurrences[0] // subsize
+                # handle hidden single
+                if len(occurrences) == 1:
+                    puzzle[occurrences[0]][col_index] = [val]
                 if all(candidate_subsudoku_row == row // subsize for row in occurrences):
                     for r, c in get_same_subsudoku(candidate_subsudoku_row*subsize, col_index, size):
                         if c != col_index and val in puzzle[r][c]:
@@ -361,6 +367,9 @@ def preprocess(puzzle):
                         continue
                     candidate_row = occurrences[0][0]
                     candidate_col = occurrences[0][1]
+                    # handle hidden single
+                    if len(occurrences) == 1:
+                        puzzle[candidate_row][candidate_col] = [val]
                     # when all occurrences of val in box are in the same row, remove all other val from row
                     if all(candidate_row == r for r, _ in occurrences):
                         for c_del in range(size):
@@ -378,7 +387,56 @@ def preprocess(puzzle):
                                 changes = True
                                 numchanges += 1
 
+        # Classic X wing
+        for val in range(1, size+1):
+            # with locked rows
+            locked_pairs = {}
+            for row_index in range(size):
+                occurrences = [col for col in range(size) if val in puzzle[row_index][col]]
+                if len(occurrences) == 2:
+                    if (occurrences[0], occurrences[1]) in locked_pairs.values():
+                        for r in locked_pairs:
+                            if locked_pairs[r] == (occurrences[0], occurrences[1]):
+                                other_row = r
+                                break
+                        for r in range(size):
+                            if r != row_index and r != other_row:
+                                if val in puzzle[r][occurrences[0]]:
+                                    puzzle[r][occurrences[0]].remove(val)
+                                    changes = True
+                                    numchanges += 1
+                                if val in puzzle[r][occurrences[1]]:
+                                    puzzle[r][occurrences[1]].remove(val)
+                                    changes = True
+                                    numchanges += 1
+                    locked_pairs[row_index] = (occurrences[0], occurrences[1])
+
+            # with locked cols
+            locked_pairs = {}
+            for col_index in range(size):
+                occurrences = [row for row in range(size) if val in puzzle[row][col_index]]
+                if len(occurrences) == 2:
+                    if (occurrences[0], occurrences[1]) in locked_pairs.values():
+                        for c in locked_pairs:
+                            if locked_pairs[c] == (occurrences[0], occurrences[1]):
+                                other_col = c
+                                break
+                        for c in range(size):
+                            if c != col_index and c != other_col:
+                                if val in puzzle[occurrences[0]][c]:
+                                    puzzle[occurrences[0]][c].remove(val)
+                                    changes = True
+                                    numchanges += 1
+                                if val in puzzle[occurrences[1]][c]:
+                                    puzzle[occurrences[1]][c].remove(val)
+                                    changes = True
+                                    numchanges += 1
+                    locked_pairs[col_index] = (occurrences[0], occurrences[1])
+
         print(numchanges)
+        
+        if [] in [cell for row in puzzle for cell in row]:
+            return "UNSAT"
 
 
 def solve(puzzle, solver, input_path):
@@ -386,12 +444,12 @@ def solve(puzzle, solver, input_path):
     global next_unused_variable
     next_unused_variable = size**3 + 1
 
-    preprocess(puzzle)
+    res = preprocess(puzzle)
 
     print("Finished preprocessing")
 
-    if [] in [cell for row in puzzle for cell in row]:
-        return "UNSAT"
+    if res == "UNSAT":
+        return res
 
     # debug printing
     #for line in puzzle:
@@ -409,18 +467,20 @@ def solve(puzzle, solver, input_path):
         print("Only supporting clasp atm")
         return
 
-    clasp_out = subprocess.run(["clasp", "1", cnf_path], stdout=PIPE, stderr=PIPE) #capture_output=True)
-    # remove Windows-specific \r
-    clasp_out = str(clasp_out.stdout).replace("\\r", "")
+    clasp_out = subprocess.run(["clasp", "1", cnf_path], capture_output=True)
+    clasp_out = clasp_out.stdout.decode()
 
     print("Finished SAT solving")
 
     # process clasp output
     if "UNSATISFIABLE" in clasp_out:
         return "UNSAT"
-    for line in str(clasp_out).split("\\n"):
+    for line in clasp_out.splitlines():
         if line[0] == "v":
             variables = line[2:].split(" ")
+            # if variables out of sudoku range (i.e., auxillary variables), stop decoding solution
+            if abs(int(variables[0])) > size**3:
+                break
             for v in variables:
                 prop_var = int(v)
                 if size**3 >= prop_var > 0:
