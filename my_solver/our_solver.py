@@ -96,7 +96,10 @@ def create_cnf(puzzle, path_to_cnf):
                         cell_vars.append(cell_to_int(row, col, val, size))
                     else:
                         f.write("-" + str(cell_to_int(row, col, val, size)) + " 0\n")
-                f.write(exactly_one_out_of(cell_vars))
+                if len(cell_vars) > 10:
+                    f.write(exactly_one_out_of_circuit(cell_vars))
+                else:
+                    f.write(exactly_one_out_of_primitive(cell_vars))
 
         # row restrictions
         for col in range(size):
@@ -105,8 +108,10 @@ def create_cnf(puzzle, path_to_cnf):
                 for row in range(size):
                     if val in puzzle[row][col]:
                         row_vars.append(cell_to_int(row, col, val, size))
-                if len(row_vars) > 1:
-                    f.write(exactly_one_out_of(row_vars))
+                if len(row_vars) > 10:
+                    f.write(exactly_one_out_of_circuit(row_vars))
+                elif len(row_vars) > 1:
+                    f.write(exactly_one_out_of_primitive(row_vars))
 
         # col restrictions
         for row in range(size):
@@ -115,8 +120,10 @@ def create_cnf(puzzle, path_to_cnf):
                 for col in range(size):
                     if val in puzzle[row][col]:
                         col_vars.append(cell_to_int(row, col, val, size))
-                if len(col_vars) > 1:
-                    f.write(exactly_one_out_of(col_vars))
+                if len(col_vars) > 10:
+                    f.write(exactly_one_out_of_circuit(col_vars))
+                elif len(col_vars) > 1:
+                    f.write(exactly_one_out_of_primitive(col_vars))
 
         # subsudoku restrictions
         sub_size = round(math.sqrt(size))
@@ -128,11 +135,13 @@ def create_cnf(puzzle, path_to_cnf):
                         for col in range(subsudoku_col*sub_size, (subsudoku_col+1)*sub_size):
                             if val in puzzle[row][col]:
                                 subsudoku_vars.append(cell_to_int(row, col, val, size))
-                    if len(subsudoku_vars) > 1:
-                        f.write(exactly_one_out_of(subsudoku_vars))
+                    if len(subsudoku_vars) > 10:
+                        f.write(exactly_one_out_of_circuit(subsudoku_vars))
+                    elif len(subsudoku_vars) > 1:
+                        f.write(exactly_one_out_of_primitive(subsudoku_vars))
 
 
-def exactly_one_out_of(list_of_vars):
+def exactly_one_out_of_circuit(list_of_vars):
     """
     CNF for 1-out-of-n constraints using half adder circuit logic
     """
@@ -143,14 +152,6 @@ def exactly_one_out_of(list_of_vars):
     next_unused_variable += len(list_of_vars) - 1
 
     ret = ""
-
-    if len(list_of_vars) == 1:
-        return str(list_of_vars[0]) + " 0\n"
-
-    if len(list_of_vars) == 2:
-        ret += str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " 0\n"
-        ret += " -" + str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " 0\n"
-        return ret
 
     # first carry is v0 AND v1
     ret += str(list_of_vars[0]) + " -" + str(carries[0]) + " 0\n"
@@ -223,6 +224,13 @@ def int_to_cell(prop_var, size):
     return row, col, val+1
 
 
+def get_same_subsudoku(row_index, col_index, size):
+    subsize = round(math.sqrt(size))
+    """ Return all cells (r, c) which are in the same subsudoku as (row_index, col_index) """
+    for r in range((row_index // subsize) * subsize, ((row_index // subsize) + 1) * subsize):
+        for c in range((col_index // subsize) * subsize, ((col_index // subsize) + 1) * subsize):
+            yield r, c
+
 def preprocess(puzzle):
     size = len(puzzle)
     subsize = round(math.sqrt(size))
@@ -235,10 +243,13 @@ def preprocess(puzzle):
                 puzzle[i][j] = [cell]
 
     changes = True
-    while changes:
+    iterations = 0
+    while changes and iterations < 1000:
         changes = False
+        iterations += 1
+        numchanges = 0
 
-        # if there's a determined cell, remove its value from all cell in the same row/col/subsudoku
+        # Naked Single: if there's a determined cell, remove its value from all cell in the same row/col/subsudoku
         for row_index, row in enumerate(puzzle):
             for col_index, cell in enumerate(row):
                 if len(cell) == 1:
@@ -247,15 +258,64 @@ def preprocess(puzzle):
                         if r != row_index and val in puzzle[r][col_index]:
                             puzzle[r][col_index].remove(val)
                             changes = True
+                            numchanges += 1
                     for c in range(size):
                         if c != col_index and val in puzzle[row_index][c]:
                             puzzle[row_index][c].remove(val)
                             changes = True
-                    for r in range((row_index // subsize) * subsize, ((row_index // subsize) + 1) * subsize):
-                        for c in range((col_index // subsize) * subsize, ((col_index // subsize) + 1) * subsize):
-                            if (r != row_index or c != col_index) and val in puzzle[r][c]:
-                                puzzle[r][c].remove(val)
-                                changes = True
+                            numchanges += 1
+                    for r, c in get_same_subsudoku(row_index, col_index, size):
+                        if (r != row_index or c != col_index) and val in puzzle[r][c]:
+                            puzzle[r][c].remove(val)
+                            changes = True
+                            numchanges += 1
+
+        # Hidden Single: if there's a row/col/subsudoku where a value is only possible in one spot, fill that spot
+        for val in range(1, size+2):
+
+            # iterating over rows
+            for row_index in range(size):
+                row = puzzle[row_index]
+                # if value already determined in row, do nothing
+                if [val] in row:
+                    continue
+                # Python magic
+                riter = iter(row)
+                if any(val in cell for cell in riter) and not any(val in cell for cell in riter):
+                    for col_index in range(size):
+                        if val in row[col_index]:
+                            puzzle[row_index][col_index] = [val]
+
+            # iterating over columns
+            for col_index in range(size):
+                col = [row[col_index] for row in puzzle]
+                # if value already determined in column, do nothing
+                if [val] in col:
+                    continue
+                # Python magic
+                citer = iter(col)
+                if any(val in cell for cell in citer) and not any(val in cell for cell in citer):
+                    for row_index in range(size):
+                        if val in col[row_index]:
+                            puzzle[row_index][col_index] = [val]
+
+            for subsudoku_row in range(subsize):
+                for subsudoku_col in range(subsize):
+                    subsudoku = [puzzle[r][c] for r, c in
+                                 get_same_subsudoku(subsudoku_row*subsize, subsudoku_col*subsize, size)]
+                    # if value already determined in subsudoku, do nothing
+                    if [val] in subsudoku:
+                        continue
+                    siter = iter(subsudoku)
+                    if any(val in cell for cell in siter) and not any(val in cell for cell in siter):
+                        for r in range(subsize):
+                            for c in range(subsize):
+                                row_index = subsudoku_row*subsize + r
+                                col_index = subsudoku_col*subsize + c
+                                if val in puzzle[row_index][col_index]:
+                                    puzzle[row_index][col_index] = [val]
+
+        #print(numchanges)
 
 
 def solve(puzzle, solver, input_path):
