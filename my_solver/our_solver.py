@@ -405,12 +405,10 @@ def preprocess(puzzle):
                                     puzzle[r][occurrences[0]].remove(val)
                                     changes = True
                                     numchanges += 1
-                                    print("did sth")
                                 if val in puzzle[r][occurrences[1]]:
                                     puzzle[r][occurrences[1]].remove(val)
                                     changes = True
                                     numchanges += 1
-                                    print("did sth")
                     locked_pairs[row_index] = (occurrences[0], occurrences[1])
 
             # with locked cols
