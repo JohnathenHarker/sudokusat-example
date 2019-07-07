@@ -4,6 +4,7 @@ import sys
 import subprocess
 import math
 import itertools
+from subprocess import PIPE
 
 
 MAX_NUMBER = 0  # typically 9, 16, 25,...
@@ -409,7 +410,7 @@ def solve(puzzle, solver, input_path):
         print("Only supporting clasp atm")
         return
 
-    clasp_out = subprocess.run(["clasp", "1", cnf_path], capture_output=True)
+    clasp_out = subprocess.run(["clasp", "1", cnf_path], stdout=PIPE, stderr=PIPE) #capture_output=True)
     # remove Windows-specific \r
     clasp_out = str(clasp_out.stdout).replace("\\r", "")
 
