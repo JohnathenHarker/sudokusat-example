@@ -4,6 +4,7 @@ import sys
 import subprocess
 import math
 import itertools
+from subprocess import PIPE
 
 
 MAX_NUMBER = 0  # typically 9, 16, 25,...
@@ -78,7 +79,6 @@ def print_output(solution):
                 print("| ", end = '')
                 for k in range(DIMENSION):
                     number = solution[i*DIMENSION+l][j*DIMENSION+k]
-                    number = max(number,2)
                     empty = (symbol_length-len(str(number)))*" "
                     print(empty + str(solution[i*DIMENSION+l][j*DIMENSION+k]), end = ' ')
             print("|")
@@ -488,6 +488,8 @@ def solve(puzzle, solver, input_path):
                     puzzle[row][col] = cell
 
     return puzzle
+
+
 
 
 solver = sys.argv[1]
