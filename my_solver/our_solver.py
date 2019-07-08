@@ -433,7 +433,7 @@ def preprocess(puzzle):
                                     numchanges += 1
                     locked_pairs[col_index] = (occurrences[0], occurrences[1])
 
-        print(numchanges)
+        #print(numchanges)
         
         if [] in [cell for row in puzzle for cell in row]:
             return "UNSAT"
@@ -467,7 +467,7 @@ def solve(puzzle, solver, input_path):
         print("Only supporting clasp atm")
         return
 
-    clasp_out = subprocess.run(["clasp", "1", cnf_path, "--heuristic=Vsids"], capture_output=True)
+    clasp_out = subprocess.run(["clasp", "1", cnf_path, "--heuristic=Vsids"], stdout=PIPE, stderr=PIPE)  # capture_output=True)
     clasp_out = clasp_out.stdout.decode()
 
     print("Finished SAT solving")
