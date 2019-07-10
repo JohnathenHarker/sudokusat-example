@@ -11,6 +11,25 @@ MAX_NUMBER = 0  # typically 9, 16, 25,...
 DIMENSION = 0   # typically 3,  4,  5,...
 
 
+class bidict(dict):
+    def __init__(self, *args, **kwargs):
+        super(bidict, self).__init__(*args, **kwargs)
+        self.inverse = {}
+        for key, value in self.items():
+            self.inverse.setdefault(value,[]).append(key)
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self.inverse[self[key]].remove(key)
+        super(bidict, self).__setitem__(key, value)
+        self.inverse.setdefault(value,[]).append(key)
+
+    def __delitem__(self, key):
+        self.inverse.setdefault(self[key],[]).remove(key)
+        if self[key] in self.inverse and not self.inverse[self[key]]:
+            del self.inverse[self[key]]
+        super(bidict, self).__delitem__(key)
+
 
 # read input file
 def read_input(input_path):
@@ -90,6 +109,7 @@ def create_cnf(puzzle, path_to_cnf):
     size = len(puzzle)
     global next_unused_variable
     global num_clauses
+    global cell_mapping
     num_clauses = 0
 
     with open(path_to_cnf, 'w') as f:
@@ -99,10 +119,8 @@ def create_cnf(puzzle, path_to_cnf):
         for row in range(size):
             for col in range(size):
                 cell_vars = []
-                for val in range(1, size+1):
-                    if val in puzzle[row][col]:
-                        cell_vars.append(cell_to_int(row, col, val, size))
-
+                for val in puzzle[row][col]:
+                    cell_vars.append(cell_mapping[row, col, val])
                 if len(cell_vars) > 10:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 elif len(cell_vars) > 1:
@@ -114,7 +132,7 @@ def create_cnf(puzzle, path_to_cnf):
                 row_vars = []
                 for row in range(size):
                     if val in puzzle[row][col]:
-                        row_vars.append(cell_to_int(row, col, val, size))
+                        row_vars.append(cell_mapping[row, col, val])
                 if len(row_vars) > 10:
                     f.write(exactly_one_out_of_circuit(row_vars))
                 elif len(row_vars) > 1:
@@ -126,7 +144,7 @@ def create_cnf(puzzle, path_to_cnf):
                 col_vars = []
                 for col in range(size):
                     if val in puzzle[row][col]:
-                        col_vars.append(cell_to_int(row, col, val, size))
+                        col_vars.append(cell_mapping[row, col, val])
                 if len(col_vars) > 10:
                     f.write(exactly_one_out_of_circuit(col_vars))
                 elif len(col_vars) > 1:
@@ -141,7 +159,7 @@ def create_cnf(puzzle, path_to_cnf):
                     for row in range(subsudoku_row*sub_size, (subsudoku_row+1)*sub_size):
                         for col in range(subsudoku_col*sub_size, (subsudoku_col+1)*sub_size):
                             if val in puzzle[row][col]:
-                                subsudoku_vars.append(cell_to_int(row, col, val, size))
+                                subsudoku_vars.append(cell_mapping[row, col, val])
                     if len(subsudoku_vars) > 10:
                         f.write(exactly_one_out_of_circuit(subsudoku_vars))
                     elif len(subsudoku_vars) > 1:
@@ -219,6 +237,7 @@ def exactly_one_out_of_primitive(list_of_vars):
     return ret
 
 
+# deprecated
 def cell_to_int(row, col, val, size):
     """
     Return the integer that is the propositional variable representing
@@ -228,6 +247,7 @@ def cell_to_int(row, col, val, size):
     return row * size**2 + col * size + val
 
 
+# deprecated
 def int_to_cell(prop_var, size):
     """
     Return the row, column and value of a cell represented
@@ -481,8 +501,10 @@ def preprocess(puzzle):
 
 def solve(puzzle, solver, input_path):
     size = len(puzzle)
+    global cell_mapping
+    cell_mapping = bidict()
     global next_unused_variable
-    next_unused_variable = size**3 + 1
+    next_unused_variable = 1
 
     res = preprocess(puzzle)
 
@@ -492,11 +514,20 @@ def solve(puzzle, solver, input_path):
         return res
 
     # debug printing
-    #for line in puzzle:
+    # for line in puzzle:
     #    l = ""
     #    for cells in line:
     #        l += str(cells) + "   "*(5-len(cells))
     #    print(l)
+
+    # create variables
+    for row in range(size):
+        for col in range(size):
+            cell_vars = []
+            for val in puzzle[row][col]:
+                cell_mapping[(row, col, val)] = next_unused_variable
+                next_unused_variable += 1
+    last_cell_variable = next_unused_variable - 1
 
     cnf_path = input_path[:-3] + "cnf"
     create_cnf(puzzle, cnf_path)
@@ -515,34 +546,21 @@ def solve(puzzle, solver, input_path):
     if "UNSATISFIABLE" in clasp_out.stdout.decode():
         return "UNSAT"
 
-    false_variables = []
-
-    # parse output for false variables
     for line in clasp_out.stdout.decode().splitlines():
         if line[0] == "v":
             variables = line[2:].split(" ")
-            # if variables out of sudoku range (i.e., auxillary variables), stop decoding solution
-            if abs(int(variables[0])) > size**3:
+            # if variables out of sudoku range (i.e., auxiliary variables), stop decoding solution
+            if abs(int(variables[0])) > last_cell_variable:
                 break
             for v in variables:
                 prop_var = int(v)
-                if abs(prop_var > size**3):
+                if abs(prop_var > last_cell_variable):
                     break
-                if prop_var < 0:
-                    false_variables.append(-prop_var)
-
-    # remove false variables from cells
-    for row_index, row in enumerate(puzzle):
-        for col_index, cell in enumerate(row):
-            for val in cell:
-                prop_var = cell_to_int(row_index, col_index, val, size)
-                if prop_var not in false_variables:
-                    puzzle[row_index][col_index] = val
-                    break
+                if prop_var > 0:
+                    row, col, val = cell_mapping.inverse[prop_var][0]
+                    puzzle[row][col] = val
 
     return puzzle
-
-
 
 
 solver = sys.argv[1]
