@@ -509,18 +509,17 @@ def solve(puzzle, solver, input_path):
         return
 
     clasp_out = subprocess.run(["clasp", "1", cnf_path, "--heuristic=Vsids"], stdout=PIPE, stderr=PIPE)  # capture_output=True)
-    clasp_out = clasp_out.stdout.decode()
 
     print("Finished SAT solving")
 
     # process clasp output
-    if "UNSATISFIABLE" in clasp_out:
+    if "UNSATISFIABLE" in clasp_out.stdout.decode():
         return "UNSAT"
 
     false_variables = []
 
     # parse output for false variables
-    for line in clasp_out.splitlines():
+    for line in clasp_out.stdout.decode().splitlines():
         if line[0] == "v":
             variables = line[2:].split(" ")
             # if variables out of sudoku range (i.e., auxillary variables), stop decoding solution
