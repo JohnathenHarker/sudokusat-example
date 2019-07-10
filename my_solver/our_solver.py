@@ -291,8 +291,8 @@ def simple_preprocessing(puzzle, max_iterations):
                 if any(val in cell for cell in riter) and not any(val in cell for cell in riter):
                     for col_index in range(size):
                         if val in row[col_index]:
+                            numchanges += len(row[col_index]) - 1
                             puzzle[row_index][col_index] = [val]
-                            numchanges += 1
 
             # iterating over columns
             for col_index in range(size):
@@ -305,8 +305,8 @@ def simple_preprocessing(puzzle, max_iterations):
                 if any(val in cell for cell in citer) and not any(val in cell for cell in citer):
                     for row_index in range(size):
                         if val in col[row_index]:
+                            numchanges += len(row[col_index]) - 1
                             puzzle[row_index][col_index] = [val]
-                            numchanges += 1
 
             for subsudoku_row in range(subsize):
                 for subsudoku_col in range(subsize):
@@ -322,8 +322,8 @@ def simple_preprocessing(puzzle, max_iterations):
                                 row_index = subsudoku_row*subsize + r
                                 col_index = subsudoku_col*subsize + c
                                 if val in puzzle[row_index][col_index]:
+                                    numchanges += len(row[col_index]) - 1
                                     puzzle[row_index][col_index] = [val]
-                                    numchanges += 1
 
         print("num of simple step exclusions:", numchanges)
 
