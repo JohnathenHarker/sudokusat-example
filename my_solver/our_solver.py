@@ -103,9 +103,6 @@ def create_cnf(puzzle, path_to_cnf):
                 for val in range(1, size+1):
                     if val in puzzle[row][col]:
                         cell_vars.append(cell_to_int(row, col, val, size))
-                    else:
-                        f.write("-" + str(cell_to_int(row, col, val, size)) + " 0\n")
-                        num_clauses += 1
                 if len(cell_vars) > 15:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 else:
@@ -345,6 +342,8 @@ def complex_preprocessing(puzzle, max_iterations):
 
     while numchanges > 0 and iterations < max_iterations:
         numchanges = 0
+        iterations += 1
+
         # intersection removal
         for val in range(1, size + 1):
 
@@ -468,9 +467,14 @@ def preprocess(puzzle):
             else:
                 puzzle[i][j] = [cell]
 
-    ret = simple_preprocessing(puzzle, 10)
+    ret = simple_preprocessing(puzzle, 3)
+
+    if ret == "UNSAT":
+        return ret
+
     print("Done simple prepreocessing")
-    ret = complex_preprocessing(puzzle, 3)
+
+    ret = complex_preprocessing(puzzle, 2)
 
     if ret == "UNSAT":
         return ret
@@ -512,6 +516,10 @@ def solve(puzzle, solver, input_path):
     # process clasp output
     if "UNSATISFIABLE" in clasp_out:
         return "UNSAT"
+
+    false_variables = []
+
+    # parse output for false variables
     for line in clasp_out.splitlines():
         if line[0] == "v":
             variables = line[2:].split(" ")
@@ -520,9 +528,19 @@ def solve(puzzle, solver, input_path):
                 break
             for v in variables:
                 prop_var = int(v)
-                if size**3 >= prop_var > 0:
-                    row, col, cell = int_to_cell(prop_var, size)
-                    puzzle[row][col] = cell
+                if abs(prop_var > size**3):
+                    break
+                if prop_var < 0:
+                    false_variables.append(prop_var)
+
+    # remove false variables from cells
+    for row_index, row in enumerate(puzzle):
+        for col_index, cell in enumerate(row):
+            for val in cell:
+                prop_var = cell_to_int(row_index, col_index, val, size)
+                if prop_var not in false_variables:
+                    puzzle[row_index][col_index] = val
+                    break
 
     return puzzle
 
