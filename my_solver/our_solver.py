@@ -102,6 +102,7 @@ def create_cnf(puzzle, path_to_cnf):
                         cell_vars.append(cell_to_int(row, col, val, size))
                     else:
                         f.write("-" + str(cell_to_int(row, col, val, size)) + " 0\n")
+                        next_unused_clause += 1
                 if len(cell_vars) > 15:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 else:
