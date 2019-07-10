@@ -88,10 +88,13 @@ def print_output(solution):
 
 def create_cnf(puzzle, path_to_cnf):
     size = len(puzzle)
+    global next_unused_variable
+    global num_clauses
+    num_clauses = 0
 
     with open(path_to_cnf, 'w') as f:
 
-        f.write("p cnf " + str(size**3 + 4*size**2*2*(size-1)) + " 12345\n")
+        f.write("p cnf " + 20*" " + "\n")
 
         # cell restrictions
         for row in range(size):
@@ -102,6 +105,7 @@ def create_cnf(puzzle, path_to_cnf):
                         cell_vars.append(cell_to_int(row, col, val, size))
                     else:
                         f.write("-" + str(cell_to_int(row, col, val, size)) + " 0\n")
+                        num_clauses += 1
                 if len(cell_vars) > 15:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 else:
@@ -146,12 +150,17 @@ def create_cnf(puzzle, path_to_cnf):
                     elif len(subsudoku_vars) > 1:
                         f.write(exactly_one_out_of_primitive(subsudoku_vars))
 
+        f.seek(6)
+        f.write(str(next_unused_variable-1) + " " + str(num_clauses))
+
 
 def exactly_one_out_of_circuit(list_of_vars):
     """
     CNF for 1-out-of-n constraints using half adder circuit logic
     """
     global next_unused_variable
+    global num_clauses
+
     sums = [next_unused_variable+i for i in range(len(list_of_vars)-1)]
     next_unused_variable += len(list_of_vars) - 1
     carries = [next_unused_variable+i for i in range(len(list_of_vars)-1)]
@@ -189,8 +198,11 @@ def exactly_one_out_of_circuit(list_of_vars):
         # all carries are false
         ret += "-" + str(carries[i]) + " 0\n"
 
+        num_clauses += 8
+
     # last sum is true
     ret += str(sums[-1]) + " 0\n"
+    num_clauses += 9
 
     return ret
 
@@ -199,12 +211,15 @@ def exactly_one_out_of_primitive(list_of_vars):
     """
     Return a CNF that ensures exactly one out of a given list of variables is true for all satisfying assignments
     """
+    global num_clauses
     ret = ""
     # at least one
     ret += " ".join(str(i) for i in list_of_vars) + " 0\n"
+    num_clauses += 1
     # no two different variables
     for pair in itertools.combinations(list_of_vars, 2):
         ret += " ".join("-"+str(i) for i in pair) + " 0\n"
+        num_clauses += 1
 
     return ret
 
