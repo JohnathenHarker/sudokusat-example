@@ -103,7 +103,7 @@ def create_cnf(puzzle, path_to_cnf):
                 for val in range(1, size+1):
                     if val in puzzle[row][col]:
                         cell_vars.append(cell_to_int(row, col, val, size))
-                if len(cell_vars) > 15:
+                if len(cell_vars) > 10:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 else:
                     f.write(exactly_one_out_of_primitive(cell_vars))
@@ -115,7 +115,7 @@ def create_cnf(puzzle, path_to_cnf):
                 for row in range(size):
                     if val in puzzle[row][col]:
                         row_vars.append(cell_to_int(row, col, val, size))
-                if len(row_vars) > 15:
+                if len(row_vars) > 10:
                     f.write(exactly_one_out_of_circuit(row_vars))
                 elif len(row_vars) > 1:
                     f.write(exactly_one_out_of_primitive(row_vars))
@@ -127,7 +127,7 @@ def create_cnf(puzzle, path_to_cnf):
                 for col in range(size):
                     if val in puzzle[row][col]:
                         col_vars.append(cell_to_int(row, col, val, size))
-                if len(col_vars) > 15:
+                if len(col_vars) > 10:
                     f.write(exactly_one_out_of_circuit(col_vars))
                 elif len(col_vars) > 1:
                     f.write(exactly_one_out_of_primitive(col_vars))
@@ -142,7 +142,7 @@ def create_cnf(puzzle, path_to_cnf):
                         for col in range(subsudoku_col*sub_size, (subsudoku_col+1)*sub_size):
                             if val in puzzle[row][col]:
                                 subsudoku_vars.append(cell_to_int(row, col, val, size))
-                    if len(subsudoku_vars) > 15:
+                    if len(subsudoku_vars) > 10:
                         f.write(exactly_one_out_of_circuit(subsudoku_vars))
                     elif len(subsudoku_vars) > 1:
                         f.write(exactly_one_out_of_primitive(subsudoku_vars))
@@ -467,7 +467,7 @@ def preprocess(puzzle):
             else:
                 puzzle[i][j] = [cell]
 
-    ret = simple_preprocessing(puzzle, 3)
+    ret = simple_preprocessing(puzzle, 4)
 
     if ret == "UNSAT":
         return ret
@@ -530,7 +530,7 @@ def solve(puzzle, solver, input_path):
                 if abs(prop_var > size**3):
                     break
                 if prop_var < 0:
-                    false_variables.append(prop_var)
+                    false_variables.append(-prop_var)
 
     # remove false variables from cells
     for row_index, row in enumerate(puzzle):
