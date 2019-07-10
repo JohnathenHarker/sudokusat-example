@@ -95,7 +95,6 @@ def create_cnf(puzzle, path_to_cnf):
     with open(path_to_cnf, 'w') as f:
 
         f.write("p cnf " + 20*" " + "\n")
-
         # cell restrictions
         for row in range(size):
             for col in range(size):
@@ -103,6 +102,7 @@ def create_cnf(puzzle, path_to_cnf):
                 for val in range(1, size+1):
                     if val in puzzle[row][col]:
                         cell_vars.append(cell_to_int(row, col, val, size))
+
                 if len(cell_vars) > 10:
                     f.write(exactly_one_out_of_circuit(cell_vars))
                 elif len(cell_vars) > 1:
@@ -146,10 +146,9 @@ def create_cnf(puzzle, path_to_cnf):
                         f.write(exactly_one_out_of_circuit(subsudoku_vars))
                     elif len(subsudoku_vars) > 1:
                         f.write(exactly_one_out_of_primitive(subsudoku_vars))
-
+                        
         f.seek(6)
         f.write(str(next_unused_variable-1) + " " + str(num_clauses))
-
 
 def exactly_one_out_of_circuit(list_of_vars):
     """
@@ -178,6 +177,8 @@ def exactly_one_out_of_circuit(list_of_vars):
     ret += "-" + str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
     ret += str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
 
+    next_unused_clause += 8
+
     for i in range(1,len(list_of_vars)-1):
         # carry is previous sum AND next variable
         # CNF (~cn | vn+1) & (~cn | sn-1) & (~vn+1 | ~sn-1 | cn)
@@ -200,7 +201,6 @@ def exactly_one_out_of_circuit(list_of_vars):
     # last sum is true
     ret += str(sums[-1]) + " 0\n"
     num_clauses += 9
-
     return ret
 
 
@@ -214,6 +214,7 @@ def exactly_one_out_of_primitive(list_of_vars):
     ret += " ".join(str(i) for i in list_of_vars) + " 0\n"
     num_clauses += 1
     # no two different variables
+    next_unused_clause += 1
     for pair in itertools.combinations(list_of_vars, 2):
         ret += " ".join("-"+str(i) for i in pair) + " 0\n"
         num_clauses += 1
@@ -484,7 +485,9 @@ def preprocess(puzzle):
 def solve(puzzle, solver, input_path):
     size = len(puzzle)
     global next_unused_variable
+    global next_unused_clause
     next_unused_variable = size**3 + 1
+    next_unused_clause = 1
 
     res = preprocess(puzzle)
 
