@@ -257,10 +257,10 @@ def simple_preprocessing(puzzle, max_iterations):
     size = len(puzzle)
     subsize = round(math.sqrt(size))
 
-    changes = True
+    numchanges = 1
     iterations = 0
-    while changes and iterations < max_iterations:
-        changes = False
+
+    while numchanges > 0 and iterations < max_iterations:
         iterations += 1
         numchanges = 0
 
@@ -272,17 +272,14 @@ def simple_preprocessing(puzzle, max_iterations):
                     for r in range(size):
                         if r != row_index and val in puzzle[r][col_index]:
                             puzzle[r][col_index].remove(val)
-                            changes = True
                             numchanges += 1
                     for c in range(size):
                         if c != col_index and val in puzzle[row_index][c]:
                             puzzle[row_index][c].remove(val)
-                            changes = True
                             numchanges += 1
                     for r, c in get_same_subsudoku(row_index, col_index, size):
                         if (r != row_index or c != col_index) and val in puzzle[r][c]:
                             puzzle[r][c].remove(val)
-                            changes = True
                             numchanges += 1
 
         # Hidden Single: if there's a row/col/subsudoku where a value is only possible in only one spot, fill that spot
@@ -300,6 +297,7 @@ def simple_preprocessing(puzzle, max_iterations):
                     for col_index in range(size):
                         if val in row[col_index]:
                             puzzle[row_index][col_index] = [val]
+                            numchanges += 1
 
             # iterating over columns
             for col_index in range(size):
@@ -313,6 +311,7 @@ def simple_preprocessing(puzzle, max_iterations):
                     for row_index in range(size):
                         if val in col[row_index]:
                             puzzle[row_index][col_index] = [val]
+                            numchanges += 1
 
             for subsudoku_row in range(subsize):
                 for subsudoku_col in range(subsize):
@@ -329,6 +328,9 @@ def simple_preprocessing(puzzle, max_iterations):
                                 col_index = subsudoku_col*subsize + c
                                 if val in puzzle[row_index][col_index]:
                                     puzzle[row_index][col_index] = [val]
+                                    numchanges += 1
+
+        print("num of simple step exclusions:", numchanges)
 
         if [] in [cell for row in puzzle for cell in row]:
             return "UNSAT"
@@ -338,10 +340,10 @@ def complex_preprocessing(puzzle, max_iterations):
     size = len(puzzle)
     subsize = round(math.sqrt(size))
 
-    changes = True
+    numchanges = 1
     iterations = 0
-    while changes and iterations < max_iterations:
-        changes = False
+
+    while numchanges > 0 and iterations < max_iterations:
         numchanges = 0
         # intersection removal
         for val in range(1, size + 1):
@@ -359,7 +361,6 @@ def complex_preprocessing(puzzle, max_iterations):
                     for r, c in get_same_subsudoku(row_index, candidate_subsudoku_col * subsize, size):
                         if r != row_index and val in puzzle[r][c]:
                             puzzle[r][c].remove(val)
-                            changes = True
                             numchanges += 1
 
             # when all occurrences of val in col are in same subsudoku, remove all other val from subsudoku
@@ -375,7 +376,6 @@ def complex_preprocessing(puzzle, max_iterations):
                     for r, c in get_same_subsudoku(candidate_subsudoku_row * subsize, col_index, size):
                         if c != col_index and val in puzzle[r][c]:
                             puzzle[r][c].remove(val)
-                            changes = True
                             numchanges += 1
 
             for subsudoku_row in range(subsize):
@@ -396,7 +396,6 @@ def complex_preprocessing(puzzle, max_iterations):
                             # only delete from cell in row if column yields different subsudoku
                             if c_del // subsize != candidate_col // subsize and val in puzzle[candidate_row][c_del]:
                                 puzzle[candidate_row][c_del].remove(val)
-                                changes = True
                                 numchanges += 1
                     # when all occurrences of val in box are in the same col, remove all other val from col
                     if all(candidate_col == c for _, c in occurrences):
@@ -404,7 +403,6 @@ def complex_preprocessing(puzzle, max_iterations):
                             # only delete from cell in column if row yields different subsudoku
                             if r_del // subsize != candidate_row // subsize and val in puzzle[r_del][candidate_col]:
                                 puzzle[r_del][candidate_col].remove(val)
-                                changes = True
                                 numchanges += 1
 
         # Classic X wing
@@ -423,11 +421,9 @@ def complex_preprocessing(puzzle, max_iterations):
                             if r != row_index and r != other_row:
                                 if val in puzzle[r][occurrences[0]]:
                                     puzzle[r][occurrences[0]].remove(val)
-                                    changes = True
                                     numchanges += 1
                                 if val in puzzle[r][occurrences[1]]:
                                     puzzle[r][occurrences[1]].remove(val)
-                                    changes = True
                                     numchanges += 1
                     locked_pairs[row_index] = (occurrences[0], occurrences[1])
 
@@ -445,13 +441,13 @@ def complex_preprocessing(puzzle, max_iterations):
                             if c != col_index and c != other_col:
                                 if val in puzzle[occurrences[0]][c]:
                                     puzzle[occurrences[0]][c].remove(val)
-                                    changes = True
                                     numchanges += 1
                                 if val in puzzle[occurrences[1]][c]:
                                     puzzle[occurrences[1]][c].remove(val)
-                                    changes = True
                                     numchanges += 1
                     locked_pairs[col_index] = (occurrences[0], occurrences[1])
+
+        print("complex step exclusions:", numchanges)
 
         if [] in [cell for row in puzzle for cell in row]:
             return "UNSAT"
