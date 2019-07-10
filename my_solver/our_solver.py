@@ -177,8 +177,6 @@ def exactly_one_out_of_circuit(list_of_vars):
     ret += "-" + str(list_of_vars[0]) + " " + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
     ret += str(list_of_vars[0]) + " -" + str(list_of_vars[1]) + " " + str(sums[0]) + " 0\n"
 
-    next_unused_clause += 8
-
     for i in range(1,len(list_of_vars)-1):
         # carry is previous sum AND next variable
         # CNF (~cn | vn+1) & (~cn | sn-1) & (~vn+1 | ~sn-1 | cn)
@@ -214,7 +212,6 @@ def exactly_one_out_of_primitive(list_of_vars):
     ret += " ".join(str(i) for i in list_of_vars) + " 0\n"
     num_clauses += 1
     # no two different variables
-    next_unused_clause += 1
     for pair in itertools.combinations(list_of_vars, 2):
         ret += " ".join("-"+str(i) for i in pair) + " 0\n"
         num_clauses += 1
@@ -485,9 +482,7 @@ def preprocess(puzzle):
 def solve(puzzle, solver, input_path):
     size = len(puzzle)
     global next_unused_variable
-    global next_unused_clause
     next_unused_variable = size**3 + 1
-    next_unused_clause = 1
 
     res = preprocess(puzzle)
 
