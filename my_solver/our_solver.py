@@ -468,14 +468,14 @@ def preprocess(puzzle):
             else:
                 puzzle[i][j] = [cell]
 
-    ret = simple_preprocessing(puzzle, 4)
+    ret = simple_preprocessing(puzzle, 2)
 
     if ret == "UNSAT":
         return ret
 
     print("Done simple prepreocessing")
 
-    ret = complex_preprocessing(puzzle, 2)
+    ret = complex_preprocessing(puzzle, 1)
 
     if ret == "UNSAT":
         return ret
