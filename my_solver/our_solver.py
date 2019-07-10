@@ -105,7 +105,7 @@ def create_cnf(puzzle, path_to_cnf):
                         cell_vars.append(cell_to_int(row, col, val, size))
                 if len(cell_vars) > 10:
                     f.write(exactly_one_out_of_circuit(cell_vars))
-                else:
+                elif len(cell_vars) > 1:
                     f.write(exactly_one_out_of_primitive(cell_vars))
 
         # row restrictions
@@ -404,47 +404,48 @@ def complex_preprocessing(puzzle, max_iterations):
                                 puzzle[r_del][candidate_col].remove(val)
                                 numchanges += 1
 
-        # Classic X wing
-        for val in range(1, size + 1):
-            # with locked rows
-            locked_pairs = {}
-            for row_index in range(size):
-                occurrences = [col for col in range(size) if val in puzzle[row_index][col]]
-                if len(occurrences) == 2:
-                    if (occurrences[0], occurrences[1]) in locked_pairs.values():
-                        for r in locked_pairs:
-                            if locked_pairs[r] == (occurrences[0], occurrences[1]):
-                                other_row = r
-                                break
-                        for r in range(size):
-                            if r != row_index and r != other_row:
-                                if val in puzzle[r][occurrences[0]]:
-                                    puzzle[r][occurrences[0]].remove(val)
-                                    numchanges += 1
-                                if val in puzzle[r][occurrences[1]]:
-                                    puzzle[r][occurrences[1]].remove(val)
-                                    numchanges += 1
-                    locked_pairs[row_index] = (occurrences[0], occurrences[1])
-
-            # with locked cols
-            locked_pairs = {}
-            for col_index in range(size):
-                occurrences = [row for row in range(size) if val in puzzle[row][col_index]]
-                if len(occurrences) == 2:
-                    if (occurrences[0], occurrences[1]) in locked_pairs.values():
-                        for c in locked_pairs:
-                            if locked_pairs[c] == (occurrences[0], occurrences[1]):
-                                other_col = c
-                                break
-                        for c in range(size):
-                            if c != col_index and c != other_col:
-                                if val in puzzle[occurrences[0]][c]:
-                                    puzzle[occurrences[0]][c].remove(val)
-                                    numchanges += 1
-                                if val in puzzle[occurrences[1]][c]:
-                                    puzzle[occurrences[1]][c].remove(val)
-                                    numchanges += 1
-                    locked_pairs[col_index] = (occurrences[0], occurrences[1])
+        # inefficient for big sudokus
+        # # Classic X wing
+        # for val in range(1, size + 1):
+        #     # with locked rows
+        #     locked_pairs = {}
+        #     for row_index in range(size):
+        #         occurrences = [col for col in range(size) if val in puzzle[row_index][col]]
+        #         if len(occurrences) == 2:
+        #             if (occurrences[0], occurrences[1]) in locked_pairs.values():
+        #                 for r in locked_pairs:
+        #                     if locked_pairs[r] == (occurrences[0], occurrences[1]):
+        #                         other_row = r
+        #                         break
+        #                 for r in range(size):
+        #                     if r != row_index and r != other_row:
+        #                         if val in puzzle[r][occurrences[0]]:
+        #                             puzzle[r][occurrences[0]].remove(val)
+        #                             numchanges += 1
+        #                         if val in puzzle[r][occurrences[1]]:
+        #                             puzzle[r][occurrences[1]].remove(val)
+        #                             numchanges += 1
+        #             locked_pairs[row_index] = (occurrences[0], occurrences[1])
+        #
+        #     # with locked cols
+        #     locked_pairs = {}
+        #     for col_index in range(size):
+        #         occurrences = [row for row in range(size) if val in puzzle[row][col_index]]
+        #         if len(occurrences) == 2:
+        #             if (occurrences[0], occurrences[1]) in locked_pairs.values():
+        #                 for c in locked_pairs:
+        #                     if locked_pairs[c] == (occurrences[0], occurrences[1]):
+        #                         other_col = c
+        #                         break
+        #                 for c in range(size):
+        #                     if c != col_index and c != other_col:
+        #                         if val in puzzle[occurrences[0]][c]:
+        #                             puzzle[occurrences[0]][c].remove(val)
+        #                             numchanges += 1
+        #                         if val in puzzle[occurrences[1]][c]:
+        #                             puzzle[occurrences[1]][c].remove(val)
+        #                             numchanges += 1
+        #             locked_pairs[col_index] = (occurrences[0], occurrences[1])
 
         print("complex step exclusions:", numchanges)
 
