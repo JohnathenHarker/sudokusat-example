@@ -253,20 +253,13 @@ def get_same_subsudoku(row_index, col_index, size):
             yield r, c
 
 
-def preprocess(puzzle):
+def simple_preprocessing(puzzle, max_iterations):
     size = len(puzzle)
     subsize = round(math.sqrt(size))
 
-    for i, row in enumerate(puzzle):
-        for j, cell in enumerate(row):
-            if cell == 0:
-                puzzle[i][j] = [i for i in range(1,size+1)]
-            else:
-                puzzle[i][j] = [cell]
-
     changes = True
     iterations = 0
-    while changes and iterations < 3:
+    while changes and iterations < max_iterations:
         changes = False
         iterations += 1
         numchanges = 0
@@ -292,54 +285,66 @@ def preprocess(puzzle):
                             changes = True
                             numchanges += 1
 
-        # included in intersection removal
         # Hidden Single: if there's a row/col/subsudoku where a value is only possible in only one spot, fill that spot
-        # for val in range(1, size+2):
-        #
-        #     # iterating over rows
-        #     for row_index in range(size):
-        #         row = puzzle[row_index]
-        #         # if value already determined in row, do nothing
-        #         if [val] in row:
-        #             continue
-        #         # Python magic
-        #         riter = iter(row)
-        #         if any(val in cell for cell in riter) and not any(val in cell for cell in riter):
-        #             for col_index in range(size):
-        #                 if val in row[col_index]:
-        #                     puzzle[row_index][col_index] = [val]
-        #
-        #     # iterating over columns
-        #     for col_index in range(size):
-        #         col = [row[col_index] for row in puzzle]
-        #         # if value already determined in column, do nothing
-        #         if [val] in col:
-        #             continue
-        #         # Python magic
-        #         citer = iter(col)
-        #         if any(val in cell for cell in citer) and not any(val in cell for cell in citer):
-        #             for row_index in range(size):
-        #                 if val in col[row_index]:
-        #                     puzzle[row_index][col_index] = [val]
-        #
-        #     for subsudoku_row in range(subsize):
-        #         for subsudoku_col in range(subsize):
-        #             subsudoku = [puzzle[r][c] for r, c in
-        #                          get_same_subsudoku(subsudoku_row*subsize, subsudoku_col*subsize, size)]
-        #             # if value already determined in subsudoku, do nothing
-        #             if [val] in subsudoku:
-        #                 continue
-        #             siter = iter(subsudoku)
-        #             if any(val in cell for cell in siter) and not any(val in cell for cell in siter):
-        #                 for r in range(subsize):
-        #                     for c in range(subsize):
-        #                         row_index = subsudoku_row*subsize + r
-        #                         col_index = subsudoku_col*subsize + c
-        #                         if val in puzzle[row_index][col_index]:
-        #                             puzzle[row_index][col_index] = [val]
+        for val in range(1, size+2):
 
+            # iterating over rows
+            for row_index in range(size):
+                row = puzzle[row_index]
+                # if value already determined in row, do nothing
+                if [val] in row:
+                    continue
+                # Python magic
+                riter = iter(row)
+                if any(val in cell for cell in riter) and not any(val in cell for cell in riter):
+                    for col_index in range(size):
+                        if val in row[col_index]:
+                            puzzle[row_index][col_index] = [val]
+
+            # iterating over columns
+            for col_index in range(size):
+                col = [row[col_index] for row in puzzle]
+                # if value already determined in column, do nothing
+                if [val] in col:
+                    continue
+                # Python magic
+                citer = iter(col)
+                if any(val in cell for cell in citer) and not any(val in cell for cell in citer):
+                    for row_index in range(size):
+                        if val in col[row_index]:
+                            puzzle[row_index][col_index] = [val]
+
+            for subsudoku_row in range(subsize):
+                for subsudoku_col in range(subsize):
+                    subsudoku = [puzzle[r][c] for r, c in
+                                 get_same_subsudoku(subsudoku_row*subsize, subsudoku_col*subsize, size)]
+                    # if value already determined in subsudoku, do nothing
+                    if [val] in subsudoku:
+                        continue
+                    siter = iter(subsudoku)
+                    if any(val in cell for cell in siter) and not any(val in cell for cell in siter):
+                        for r in range(subsize):
+                            for c in range(subsize):
+                                row_index = subsudoku_row*subsize + r
+                                col_index = subsudoku_col*subsize + c
+                                if val in puzzle[row_index][col_index]:
+                                    puzzle[row_index][col_index] = [val]
+
+        if [] in [cell for row in puzzle for cell in row]:
+            return "UNSAT"
+
+
+def complex_preprocessing(puzzle, max_iterations):
+    size = len(puzzle)
+    subsize = round(math.sqrt(size))
+
+    changes = True
+    iterations = 0
+    while changes and iterations < max_iterations:
+        changes = False
+        numchanges = 0
         # intersection removal
-        for val in range(1, size+1):
+        for val in range(1, size + 1):
 
             # when all occurrences of val in row are in same subsudoku, remove all other val from subsudoku
             for row_index in range(size):
@@ -351,7 +356,7 @@ def preprocess(puzzle):
                 if len(occurrences) == 1:
                     puzzle[row_index][occurrences[0]] = [val]
                 if all(candidate_subsudoku_col == col // subsize for col in occurrences):
-                    for r, c in get_same_subsudoku(row_index, candidate_subsudoku_col*subsize, size):
+                    for r, c in get_same_subsudoku(row_index, candidate_subsudoku_col * subsize, size):
                         if r != row_index and val in puzzle[r][c]:
                             puzzle[r][c].remove(val)
                             changes = True
@@ -367,7 +372,7 @@ def preprocess(puzzle):
                 if len(occurrences) == 1:
                     puzzle[occurrences[0]][col_index] = [val]
                 if all(candidate_subsudoku_row == row // subsize for row in occurrences):
-                    for r, c in get_same_subsudoku(candidate_subsudoku_row*subsize, col_index, size):
+                    for r, c in get_same_subsudoku(candidate_subsudoku_row * subsize, col_index, size):
                         if c != col_index and val in puzzle[r][c]:
                             puzzle[r][c].remove(val)
                             changes = True
@@ -376,7 +381,7 @@ def preprocess(puzzle):
             for subsudoku_row in range(subsize):
                 for subsudoku_col in range(subsize):
                     occurrences = [(row, col) for row, col
-                                   in get_same_subsudoku(subsudoku_row*subsize, subsudoku_col*subsize, size)
+                                   in get_same_subsudoku(subsudoku_row * subsize, subsudoku_col * subsize, size)
                                    if val in puzzle[row][col]]
                     if len(occurrences) < 1:
                         continue
@@ -403,7 +408,7 @@ def preprocess(puzzle):
                                 numchanges += 1
 
         # Classic X wing
-        for val in range(1, size+1):
+        for val in range(1, size + 1):
             # with locked rows
             locked_pairs = {}
             for row_index in range(size):
@@ -448,10 +453,31 @@ def preprocess(puzzle):
                                     numchanges += 1
                     locked_pairs[col_index] = (occurrences[0], occurrences[1])
 
-        #print(numchanges)
-        
         if [] in [cell for row in puzzle for cell in row]:
             return "UNSAT"
+
+        simple_preprocessing(puzzle, 1)
+
+        if [] in [cell for row in puzzle for cell in row]:
+            return "UNSAT"
+
+
+def preprocess(puzzle):
+    size = len(puzzle)
+
+    for i, row in enumerate(puzzle):
+        for j, cell in enumerate(row):
+            if cell == 0:
+                puzzle[i][j] = [i for i in range(1, size+1)]
+            else:
+                puzzle[i][j] = [cell]
+
+    ret = simple_preprocessing(puzzle, 10)
+    print("Done simple prepreocessing")
+    ret = complex_preprocessing(puzzle, 3)
+
+    if ret == "UNSAT":
+        return ret
 
 
 def solve(puzzle, solver, input_path):
