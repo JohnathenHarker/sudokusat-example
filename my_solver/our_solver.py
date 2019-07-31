@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import signal
+from signals import *
 import sys
 import subprocess
 import math
@@ -562,6 +564,10 @@ def solve(puzzle, solver, input_path):
 
     return puzzle
 
+
+# Signal setup
+signal.signal(signal.SIGTERM, handler)
+signal.signal(signal.SIGINT, handler)
 
 solver = sys.argv[1]
 input_path = sys.argv[2]
